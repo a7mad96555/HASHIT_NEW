@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>HASH IT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0f0f0f;font-family:system-ui,-apple-system,sans-serif;}
+input[type=range]{-webkit-appearance:none;height:4px;border-radius:2px;background:#333;width:100%;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#f7931a;cursor:pointer;}
+select option{background:#222;color:#e0e0e0;}
+::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo,useEffect,useRef}=React;
+const SAR=3.75;
+const AC="#f7931a",BG="#0f0f0f",CD="#1a1a1a",BR="#2a2a2a",TX="#e0e0e0",DM="#888";
+
+// ── MINER DATABASE ──
+const BASE_RAW=[
+// LTC/Scrypt miners (hashrate in GH/s, watts)
+[‘Bitmain’,‘L9 16G’,‘LTC’,16000,‘GH’,3260,3000,‘Air’],
+[‘Bitmain’,‘L9 16.5G’,‘LTC’,16500,‘GH’,3364,3100,‘Air’],
+[‘Bitmain’,‘L9 17G’,‘LTC’,17000,‘GH’,3468,3300,‘Air’],
+[‘Bitmain’,‘L11 20G’,‘LTC’,20000,‘GH’,4080,7500,‘Air’],
+[‘DG’,‘Hydro1 20G’,‘LTC’,20000,‘GH’,3000,4350,‘Hydro’],
+[‘DG’,‘Hydro1 21G’,‘LTC’,21000,‘GH’,3150,4570,‘Hydro’],
+[‘DG’,‘Home1 2.1G’,‘LTC’,2100,‘GH’,400,500,‘Air’],
+[‘Fluminer’,‘L2 1.2G’,‘LTC’,1200,‘GH’,228,330,‘Air’],
+[‘Fluminer’,‘L1 Pro 6G’,‘LTC’,6000,‘GH’,1140,1350,‘Air’],
+[‘Fluminer’,‘L3 9.5G’,‘LTC’,9500,‘GH’,1900,2849,‘Air’],
+// BTC miners (hashrate in TH/s, watts)
+[‘Bitmain’,‘S19K Pro 120T’,‘BTC’,120,‘TH’,2760,324,‘Air’],
+[‘Bitmain’,‘S19K Pro 115T’,‘BTC’,115,‘TH’,2645,253,‘Air’],
+[‘Bitmain’,‘S19K Pro 110T’,‘BTC’,110,‘TH’,2365,236,‘Air’],
+[‘Bitmain’,‘S19K Pro 105T’,‘BTC’,105,‘TH’,2258,226,‘Air’],
+[‘Bitmain’,‘S21 151T’,‘BTC’,151,‘TH’,3523,845,‘Air’],
+[‘Bitmain’,‘S21 XP 270T’,‘BTC’,270,‘TH’,3645,2970,‘Air’],
+[‘Bitmain’,‘S21+ 235T’,‘BTC’,235,‘TH’,3525,1692,‘Air’],
+[‘Bitmain’,‘S21 PRO+ 234T’,‘BTC’,234,‘TH’,3978,2059,‘Air’],
+[‘Bitmain’,‘S19XP+ Hyd 293T’,‘BTC’,293,‘TH’,4248,1011,‘Hydro’],
+[‘Bitmain’,‘S19XP+ Hyd 266T’,‘BTC’,266,‘TH’,3857,745,‘Hydro’],
+[‘Bitmain’,‘S19XP+ Hyd 252T’,‘BTC’,252,‘TH’,3655,706,‘Hydro’],
+[‘Bitmain’,‘S21e Hyd 288T’,‘BTC’,288,‘TH’,4320,1382,‘Hydro’],
+[‘Bitmain’,‘S21e Hyd 310T’,‘BTC’,310,‘TH’,4650,1519,‘Hydro’],
+[‘Bitmain’,‘S21e Hyd 332T’,‘BTC’,332,‘TH’,4980,1760,‘Hydro’],
+[‘Bitmain’,‘S21+ Hyd 358T’,‘BTC’,358,‘TH’,5907,2399,‘Hydro’],
+[‘Bitmain’,‘S21+ Hyd 395T’,‘BTC’,395,‘TH’,6320,3002,‘Hydro’],
+[‘Bitmain’,‘S21XP Hyd 473T’,‘BTC’,473,‘TH’,6386,5440,‘Hydro’],
+[‘Bitmain’,‘S21e XP Hyd 860T’,‘BTC’,860,‘TH’,11180,10148,‘Hydro’],
+[‘Bitmain’,‘S23 Hyd 580T’,‘BTC’,580,‘TH’,9280,13050,‘Hydro’],
+[‘Bitmain’,‘S21 IMM 215T’,‘BTC’,215,‘TH’,3655,1677,‘Immersion’],
+[‘Bitmain’,‘S21 IMM 220T’,‘BTC’,220,‘TH’,3740,1716,‘Immersion’],
+[‘Sealminer’,‘A2 Pro 256T’,‘BTC’,256,‘TH’,3814,2970,‘Air’],
+[‘Sealminer’,‘A3 Hyd 500T’,‘BTC’,500,‘TH’,6750,6400,‘Hydro’],
+[‘Sealminer’,‘A3 Pro Hyd 660T’,‘BTC’,660,‘TH’,8250,9438,‘Hydro’],
+[‘MicroBT’,‘M50S 126T’,‘BTC’,126,‘TH’,3276,680,‘Air’],
+[‘MicroBT’,‘M50S+ 144T’,‘BTC’,144,‘TH’,3456,878,‘Air’],
+[‘MicroBT’,‘M50S++ 148T’,‘BTC’,148,‘TH’,3256,977,‘Air’],
+[‘MicroBT’,‘M60 174T’,‘BTC’,174,‘TH’,3463,1235,‘Air’],
+[‘MicroBT’,‘M60s 190T’,‘BTC’,190,‘TH’,3515,1444,‘Air’],
+[‘MicroBT’,‘M60s+ 208T’,‘BTC’,208,‘TH’,3536,1768,‘Air’],
+[‘MicroBT’,‘M61 212T’,‘BTC’,212,‘TH’,4028,1590,‘Air’],
+[‘MicroBT’,‘M61s+ 242T’,‘BTC’,242,‘TH’,4114,2057,‘Air’],
+[‘MicroBT’,‘M70 242T’,‘BTC’,242,‘TH’,3509,2565,‘Air’],
+[‘MicroBT’,‘M70S 260T’,‘BTC’,260,‘TH’,3510,3172,‘Air’],
+[‘MicroBT’,‘M6Ds++ 604T’,‘BTC’,604,‘TH’,9362,4590,‘Hydro’],
+[‘MicroBT’,‘M63 374T’,‘BTC’,374,‘TH’,7441,2431,‘Air’],
+[‘MicroBT’,‘M63S 406T’,‘BTC’,406,‘TH’,7511,2842,‘Air’],
+[‘MicroBT’,‘M63S+ 422T’,‘BTC’,422,‘TH’,7174,3165,‘Air’],
+[‘MicroBT’,‘M63S++ 472T’,‘BTC’,472,‘TH’,7316,3870,‘Air’],
+[‘MicroBT’,‘M73 492T’,‘BTC’,492,‘TH’,7134,4723,‘Air’],
+[‘MicroBT’,‘M66S+ 318T’,‘BTC’,318,‘TH’,5406,2417,‘Air’],
+];
+
+const BASE_MINERS=BASE_RAW.map((r,i)=>({
+id:i,brand:r[0],model:r[1],algo:r[2],hashrate:r[3],unit:r[4],
+watts:r[5],price:r[6],cooling:r[7],isBase:true,
+eff:r[4]===‘TH’?+(r[5]/r[3]).toFixed(2):+(r[5]/r[3]).toFixed(3)
+}));
+
+// ── TRANSLATIONS ──
+const TR={
+en:{app:‘HASH IT’,tabs:[‘⚙️ Calc’,‘🏆 Best’,‘⚖️ Compare’,‘🔧 Admin’],
+brand:‘Brand’,coin:‘Coin’,model:‘Miner Model’,qty:‘Qty’,price:‘Price $’,
+elec:‘Elec $/kWh’,pool:‘Pool Fee %’,infra:‘Infra CAPEX’,uptime:‘Uptime’,
+profit:‘Daily Net Profit’,gross:‘gross’,day:’/day’,moPro:‘Monthly Profit’,
+be:‘Breakeven’,roi:‘ROI / Year’,capex:‘Total CAPEX’,eCost:‘Elec/day’,pwr:‘Power’,
+chart:‘Cumulative P&L — 365 days’,beAt:‘Breakeven at’,days:‘days’,
+bestTitle:‘Best Miner for Budget’,budget:‘Budget ($)’,units:‘units’,
+cmpTitle:‘Compare Miners’,using:‘Settings:’,miner:‘Miner’,all:‘All’,
+adminTitle:‘Miner Database’,addTitle:‘Add New Miner’,addBtn:‘Add Miner’,
+customList:‘Custom Miners’,baseList:‘All Miners’,del:‘Delete’,editP:‘Edit Price’,
+editW:‘Edit Watts’,fromList:‘📋 From List’,customIn:‘✏️ Custom Input’,
+enterSpecs:‘Enter Miner Specs’,live:‘WhatToMine Live’,offline:‘Offline’},
+ar:{app:‘هاش إت’,tabs:[‘⚙️ حاسبة’,‘🏆 الأفضل’,‘⚖️ مقارنة’,‘🔧 إدارة’],
+brand:‘الماركة’,coin:‘العملة’,model:‘نوع الجهاز’,qty:‘الكمية’,price:‘السعر $’,
+elec:‘كهرباء $/كيلوواط’,pool:‘رسوم البول %’,infra:‘تكلفة البنية التحتية’,uptime:‘وقت التشغيل’,
+profit:‘صافي الربح اليومي’,gross:‘إجمالي’,day:’/يوم’,moPro:‘الربح الشهري’,
+be:‘نقطة التعادل’,roi:‘العائد / سنة’,capex:‘إجمالي رأس المال’,eCost:‘كهرباء/يوم’,pwr:‘الطاقة’,
+chart:‘الربح التراكمي — 365 يوم’,beAt:‘نقطة التعادل عند’,days:‘يوم’,
+bestTitle:‘أفضل جهاز لميزانيتك’,budget:‘الميزانية ($)’,units:‘وحدة’,
+cmpTitle:‘مقارنة الأجهزة’,using:‘الإعدادات:’,miner:‘جهاز’,all:‘الكل’,
+adminTitle:‘قاعدة بيانات الأجهزة’,addTitle:‘إضافة جهاز جديد’,addBtn:‘إضافة’,
+customList:‘الأجهزة المضافة’,baseList:‘جميع الأجهزة’,del:‘حذف’,editP:‘تعديل السعر’,
+editW:‘تعديل الواط’,fromList:‘📋 من القائمة’,customIn:‘✏️ إدخال يدوي’,
+enterSpecs:‘أدخل مواصفات الجهاز’,live:‘WhatToMine مباشر’,offline:‘غير متصل’}
+};
+
+// ── CORE CALCULATION ──
+// BTC: hashrate in TH/s → multiply by 1e12 to get H/s
+// LTC: hashrate in GH/s → multiply by 1e9 to get H/s
+function doCalc(m, qty, elec, prices, wtm, pool, upt, infra) {
+if (!m || qty<=0) return null;
+const {btcP, ltcP, dogeP} = prices;
+const isBTC = m.algo===‘BTC’;
+const pwrKW = (m.watts/1000) * qty;
+const eCost = pwrKW * 24 * elec * (upt/100);
+
+let revenue=0, coinDay=0;
+
+if (isBTC) {
+// TH/s → H/s = multiply by 1e12
+const hashHS = m.hashrate * qty * 1e12;
+if (wtm.btc && wtm.btc.nethash > 0) {
+coinDay = (hashHS * 86400 * wtm.btc.block_reward) / (wtm.btc.nethash * wtm.btc.block_time);
+} else {
+// fallback: standard formula at ~981 EH/s
+coinDay = (m.hashrate * qty / 981e6) * 3.125 * 144;
+}
+revenue = coinDay * btcP * (1-pool/100) * (upt/100);
+} else {
+// GH/s → H/s = multiply by 1e9
+const hashHS = m.hashrate * qty * 1e9;
+let ltcDay=0, dogeDay=0;
+if (wtm.ltc && wtm.ltc.nethash > 0) {
+ltcDay = (hashHS * 86400 * wtm.ltc.block_reward) / (wtm.ltc.nethash * wtm.ltc.block_time);
+}
+if (wtm.doge && wtm.doge.nethash > 0) {
+dogeDay = (hashHS * 86400 * wtm.doge.block_reward) / (wtm.doge.nethash * wtm.doge.block_time);
+}
+coinDay = ltcDay;
+revenue = (ltcDay*ltcP + dogeDay*dogeP) * (1-pool/100) * (upt/100);
+}
+
+const pDay = revenue - eCost;
+const capex = m.price*qty + infra;
+const be = pDay>0 ? capex/pDay : Infinity;
+const roi = capex>0 ? (pDay*365/capex)*100 : 0;
+return {coinDay, revenue, eCost, pDay, pMo:pDay*30, capex, be, roi, pwrKW};
+}
+
+const fmt=(n,d=0)=>(n==null||!isFinite(n))?’—’:n.toLocaleString(‘en’,{maximumFractionDigits:d});
+const fmtC=n=>n<0.001?n.toFixed(6):n.toFixed(5);
+const COOL={Air:’#3b82f6’,Hydro:’#06b6d4’,Immersion:’#a855f7’};
+const BLANK={brand:’’,model:’’,algo:‘BTC’,hashrate:’’,unit:‘TH’,watts:’’,price:’’,cooling:‘Air’};
+
+function SC({label,value,color}){
+return(<div style={{background:’#222’,borderRadius:8,padding:‘10px 12px’}}>
+<div style={{fontSize:10,color:DM,marginBottom:2}}>{label}</div>
+<div style={{fontSize:14,fontWeight:700,color:color||’#fff’}}>{value}</div>
+
+  </div>);
+}
+
+function Tog({active,onClick,label}){
+return(<button onClick={onClick} style={{background:active?AC:’#252525’,color:active?’#000’:DM,
+border:`1px solid ${active?AC:BR}`,borderRadius:6,padding:‘4px 11px’,
+fontSize:12,fontWeight:700,cursor:‘pointer’}}>
+{label}
+</button>);
+}
+
+function App(){
+const[lang,setLang]=useState(‘en’);
+const[cur,setCur]=useState(‘usd’);
+const[tab,setTab]=useState(0);
+const[mode,setMode]=useState(‘list’);
+const[selId,setSelId]=useState(10);
+const[qty,setQty]=useState(10);
+const[elec,setElec]=useState(0.05);
+const[btcP,setBtcP]=useState(84000);
+const[ltcP,setLtcP]=useState(90);
+const[dogeP,setDogeP]=useState(0.17);
+const[pool,setPool]=useState(1);
+const[upt,setUpt]=useState(95);
+const[infra,setInfra]=useState(0);
+const[mPrc,setMPrc]=useState(null);
+const[bflt,setBflt]=useState(‘All’);
+const[aflt,setAflt]=useState(‘BTC’);
+const[custTH,setCustTH]=useState(200);
+const[custKW,setCustKW]=useState(3.5);
+const[custPrc,setCustPrc]=useState(0);
+const[budget,setBudget]=useState(50000);
+const[rElec,setRElec]=useState(0.05);
+const[cmpIds,setCmpIds]=useState([10,14,35]);
+const[customs,setCustoms]=useState([]);
+const[overrides,setOvr]=useState({});
+const[wOvr,setWOvr]=useState({});
+const[deleted,setDeleted]=useState([]);
+const[form,setForm]=useState(BLANK);
+const[showForm,setShowForm]=useState(false);
+const[editId,setEditId]=useState(null);
+const[editVal,setEditVal]=useState(’’);
+const[editWId,setEditWId]=useState(null);
+const[editWVal,setEditWVal]=useState(’’);
+const[isAdmin,setIsAdmin]=useState(false);
+const[showLogin,setShowLogin]=useState(false);
+const[loginEmail,setLoginEmail]=useState(’’);
+const[loginPass,setLoginPass]=useState(’’);
+const[loginErr,setLoginErr]=useState(’’);
+const[wtm,setWtm]=useState({btc:null,ltc:null,doge:null});
+const[liveTag,setLiveTag]=useState(‘⏳’);
+const[lastUp,setLastUp]=useState(null);
+
+const t=TR[lang], ar=lang===‘ar’;
+const mul=cur===‘sar’?SAR:1, sym=cur===‘sar’?‘﷼’:’$’;
+const sm=(usd,d=0)=>`${sym}${fmt(usd*mul,d)}`;
+const dir=ar?‘rtl’:‘ltr’;
+const prices={btcP,ltcP,dogeP};
+
+// ── LIVE DATA ──
+useEffect(()=>{
+const fetchAll=()=>{
+// Prices
+fetch(‘https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,litecoin,dogecoin&vs_currencies=usd’)
+.then(r=>r.json()).then(d=>{
+if(d?.bitcoin?.usd) setBtcP(d.bitcoin.usd);
+if(d?.litecoin?.usd) setLtcP(d.litecoin.usd);
+if(d?.dogecoin?.usd) setDogeP(d.dogecoin.usd);
+}).catch(()=>{});
+
+```
+  // WhatToMine — BTC(1) LTC(4) DOGE(2)
+  Promise.all([
+    fetch('https://whattomine.com/coins/1.json').then(r=>r.json()).catch(()=>null),
+    fetch('https://whattomine.com/coins/4.json').then(r=>r.json()).catch(()=>null),
+    fetch('https://whattomine.com/coins/2.json').then(r=>r.json()).catch(()=>null),
+  ]).then(([btc,ltc,doge])=>{
+    if(btc||ltc||doge){
+      setWtm({btc,ltc,doge});
+      setLiveTag('🟢');
+      setLastUp(new Date());
+    } else setLiveTag('🔴');
+  });
+};
+fetchAll();
+const iv=setInterval(fetchAll,5*60*1000);
+return()=>clearInterval(iv);
+```
+
+},[]);
+
+// ── PERSIST ADMIN CHANGES ──
+useEffect(()=>{
+try{
+const s=localStorage.getItem(‘hashit_overrides’);
+if(s) setOvr(JSON.parse(s));
+const w=localStorage.getItem(‘hashit_wovr’);
+if(w) setWOvr(JSON.parse(w));
+const d=localStorage.getItem(‘hashit_deleted’);
+if(d) setDeleted(JSON.parse(d));
+const c=localStorage.getItem(‘hashit_customs’);
+if(c) setCustoms(JSON.parse(c));
+}catch(e){}
+},[]);
+
+const saveOvr=(v)=>{setOvr(v);try{localStorage.setItem(‘hashit_overrides’,JSON.stringify(v));}catch(e){}};
+const saveWOvr=(v)=>{setWOvr(v);try{localStorage.setItem(‘hashit_wovr’,JSON.stringify(v));}catch(e){}};
+const saveDel=(v)=>{setDeleted(v);try{localStorage.setItem(‘hashit_deleted’,JSON.stringify(v));}catch(e){}};
+const saveCust=(v)=>{setCustoms(v);try{localStorage.setItem(‘hashit_customs’,JSON.stringify(v));}catch(e){}};
+
+const allM=useMemo(()=>[
+…BASE_MINERS
+.filter(m=>!deleted.includes(m.id))
+.map(m=>({
+…m,
+price:overrides[m.id]!=null?overrides[m.id]:m.price,
+watts:wOvr[m.id]!=null?wOvr[m.id]:m.watts,
+eff:wOvr[m.id]!=null?+(wOvr[m.id]/m.hashrate).toFixed(2):m.eff
+})),
+…customs
+],[overrides,wOvr,deleted,customs]);
+
+const miner=useMemo(()=>{
+if(mode===‘custom’){
+const th=custTH||1, kw=custKW||0;
+return{id:‘custom’,brand:‘Custom’,model:ar?‘جهاز مخصص’:‘Custom Miner’,
+algo:‘BTC’,hashrate:th,unit:‘TH’,watts:kw*1000,price:custPrc,
+cooling:‘Air’,eff:th>0?+((kw*1000)/th).toFixed(2):0};
+}
+return allM.find(m=>m.id===selId);
+},[mode,custTH,custKW,custPrc,selId,allM,ar]);
+
+const effPrc=mode===‘custom’?custPrc:(mPrc??miner?.price??0);
+const brands=useMemo(()=>[‘All’,…new Set(allM.map(m=>m.brand))]  ,[allM]);
+const filt=useMemo(()=>allM.filter(m=>(bflt===‘All’||m.brand===bflt)&&(aflt===‘All’||m.algo===aflt)),[bflt,aflt,allM]);
+
+const res=useMemo(()=>{
+if(!miner) return null;
+return doCalc({…miner,price:effPrc},qty,elec,prices,wtm,pool,upt,infra);
+},[miner,qty,elec,btcP,ltcP,dogeP,wtm,pool,upt,infra,effPrc]);
+
+const chart=useMemo(()=>{
+if(!res) return null;
+const W=420,H=110,pl=50,pr=10,pt=8,pb=20,cw=W-pl-pr,ch=H-pt-pb;
+const ds=[],vs=[];
+for(let d=0;d<=365;d+=5){ds.push(d);vs.push(res.pDay*d-res.capex);}
+const yMx=Math.max(…vs),yMn=Math.min(…vs),yr=yMx-yMn||1;
+const px=d=>pl+(d/365)*cw, py=v=>pt+((yMx-v)/yr)*ch;
+const z=Math.min(Math.max(py(0),pt),H-pb);
+const line=ds.map((d,i)=>`${px(d)},${py(vs[i])}`).join(’ ’);
+const fill=`${px(0)},${z} ${line} ${px(365)},${z}`;
+return{W,H,pl,pt,pb,line,fill,z,beX:res.be<=365?px(res.be):null,yMx,yMn,be:res.be};
+},[res]);
+
+const recs=useMemo(()=>
+allM.filter(m=>m.algo===‘BTC’&&m.price>0).map(m=>{
+const q=Math.floor(budget/m.price);
+if(q<1) return null;
+const r=doCalc(m,q,rElec,prices,wtm,pool,upt,0);
+return r?{…m,q,…r}:null;
+}).filter(Boolean).sort((a,b)=>b.roi-a.roi).slice(0,6),
+[allM,budget,rElec,btcP,ltcP,dogeP,wtm,pool,upt]);
+
+const doLogin=()=>{
+if(loginEmail===‘a@hashit.co’&&loginPass===‘50604021Aa’){
+setIsAdmin(true);setShowLogin(false);setLoginErr(’’);
+} else setLoginErr(‘Wrong email or password’);
+};
+
+const addMiner=()=>{
+const{brand,model,algo,hashrate,unit,watts,price,cooling}=form;
+if(!brand||!model||!hashrate||!watts||!price) return;
+const hs=+hashrate,ws=+watts,pr=+price;
+const nm={id:Date.now(),brand,model,algo,hashrate:hs,unit,watts:ws,price:pr,
+cooling,eff:unit===‘TH’?+(ws/hs).toFixed(2):+(ws/hs).toFixed(3),isBase:false};
+saveCust([…customs,nm]);
+setForm(BLANK);setShowForm(false);
+};
+
+const isLTC=miner?.algo===‘LTC’;
+
+const I={width:‘100%’,background:’#222’,border:`1px solid ${BR}`,borderRadius:8,
+padding:‘9px 11px’,color:TX,fontSize:14,boxSizing:‘border-box’,outline:‘none’,
+direction:dir};
+const L={fontSize:11,color:DM,textTransform:‘uppercase’,letterSpacing:.5,
+marginBottom:4,display:‘block’,textAlign:ar?‘right’:‘left’};
+const G2={display:‘grid’,gridTemplateColumns:‘1fr 1fr’,gap:10,marginBottom:10};
+
+const secAgo=lastUp?Math.floor((new Date()-lastUp)/1000):null;
+
+return(
+<div style={{background:BG,minHeight:‘100vh’,color:TX,maxWidth:480,margin:‘0 auto’,
+paddingBottom:56,direction:dir}}>
+
+```
+  {/* HEADER */}
+  <div style={{background:'#111',padding:'13px 14px 0',borderBottom:`1px solid ${BR}`,
+    position:'sticky',top:0,zIndex:10}}>
+    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+      <span style={{fontSize:19,fontWeight:800,color:'#fff'}}>⛏ {t.app}</span>
+      <div style={{marginLeft:ar?0:'auto',marginRight:ar?'auto':0,display:'flex',gap:6,alignItems:'center'}}>
+        <Tog active={ar} onClick={()=>setLang(l=>l==='en'?'ar':'en')} label={ar?'EN':'AR'}/>
+        <Tog active={cur==='sar'} onClick={()=>setCur(c=>c==='usd'?'sar':'usd')} label={cur==='usd'?'SAR':'USD'}/>
+        <button onClick={()=>isAdmin?setIsAdmin(false):setShowLogin(true)}
+          style={{background:'transparent',border:'none',cursor:'pointer',fontSize:16}}>
+          {isAdmin?'🔓':'🔒'}
+        </button>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontSize:13,fontWeight:700,color:AC}}>{sm(btcP)}</div>
+          <div style={{fontSize:9,color:liveTag==='🟢'?'#4ade80':'#e05555'}}>
+            {liveTag} {liveTag==='🟢'?t.live:t.offline}{secAgo?` · ${secAgo}s ago`:''}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style={{display:'flex'}}>
+      {t.tabs.filter((_,i)=>i<3||(i===3&&isAdmin)).map((tb,i)=>(
+        <div key={i} onClick={()=>setTab(i)} style={{flex:1,padding:'8px 2px',
+          textAlign:'center',fontSize:11,fontWeight:700,cursor:'pointer',
+          borderBottom:`2px solid ${tab===i?AC:'transparent'}`,color:tab===i?AC:DM}}>
+          {tb}
+        </div>
+      ))}
+    </div>
+  </div>
+
+  {/* LOGIN MODAL */}
+  {showLogin&&(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',
+      display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:24}}>
+      <div style={{background:CD,borderRadius:16,padding:24,width:'100%',maxWidth:320}}>
+        <div style={{fontSize:18,fontWeight:700,marginBottom:16,textAlign:'center'}}>
+          🔐 Admin Login
+        </div>
+        <input type="email" placeholder="Email" style={{...I,marginBottom:10}}
+          value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/>
+        <input type="password" placeholder="Password" style={{...I,marginBottom:10}}
+          value={loginPass} onChange={e=>setLoginPass(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&doLogin()}/>
+        {loginErr&&<div style={{color:'#e05555',fontSize:12,marginBottom:10}}>{loginErr}</div>}
+        <button onClick={doLogin} style={{width:'100%',background:AC,color:'#000',
+          border:'none',borderRadius:8,padding:12,fontSize:14,fontWeight:700,cursor:'pointer',marginBottom:8}}>
+          Login
+        </button>
+        <button onClick={()=>setShowLogin(false)} style={{width:'100%',background:'#333',
+          color:TX,border:'none',borderRadius:8,padding:10,fontSize:13,cursor:'pointer'}}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )}
+
+  <div style={{padding:'14px 14px 0'}}>
+
+    {/* ══ CALC TAB ══ */}
+    {tab===0&&(
+      <div>
+        <div style={{display:'flex',gap:8,marginBottom:14}}>
+          <button onClick={()=>setMode('list')} style={{flex:1,padding:'10px',borderRadius:9,
+            fontWeight:700,fontSize:13,cursor:'pointer',border:`1px solid ${mode==='list'?AC:BR}`,
+            background:mode==='list'?AC:'#1e1e1e',color:mode==='list'?'#000':DM}}>{t.fromList}</button>
+          <button onClick={()=>setMode('custom')} style={{flex:1,padding:'10px',borderRadius:9,
+            fontWeight:700,fontSize:13,cursor:'pointer',border:`1px solid ${mode==='custom'?AC:BR}`,
+            background:mode==='custom'?AC:'#1e1e1e',color:mode==='custom'?'#000':DM}}>{t.customIn}</button>
+        </div>
+
+        {mode==='custom'&&(
+          <div style={{background:'#161616',border:`1px solid ${AC}44`,borderRadius:12,padding:14,marginBottom:12}}>
+            <div style={{fontSize:11,color:AC,fontWeight:700,textTransform:'uppercase',marginBottom:12}}>{t.enterSpecs}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+              <div><span style={L}>TH/s</span>
+                <input type="number" style={I} value={custTH} min={1} onChange={e=>setCustTH(+e.target.value)}/></div>
+              <div><span style={L}>kW</span>
+                <input type="number" style={I} value={custKW} step={0.1} onChange={e=>setCustKW(+e.target.value)}/></div>
+              <div><span style={L}>{ar?'السعر $':'Price $'}</span>
+                <input type="number" style={I} value={custPrc} onChange={e=>setCustPrc(+e.target.value)}/></div>
+            </div>
+            {custTH>0&&custKW>0&&(
+              <div style={{marginTop:10,display:'flex',gap:8}}>
+                <span style={{background:'#f7931a18',color:AC,borderRadius:6,padding:'3px 10px',fontSize:12,fontWeight:700}}>
+                  {((custKW*1000)/custTH).toFixed(1)} J/TH
+                </span>
+                <span style={{background:'#ffffff0d',color:DM,borderRadius:6,padding:'3px 10px',fontSize:12}}>
+                  {custTH} TH/s · {custKW} kW
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode==='list'&&(
+          <div>
+            <div style={G2}>
+              <div><span style={L}>{t.brand}</span>
+                <select style={{...I,cursor:'pointer'}} value={bflt} onChange={e=>setBflt(e.target.value)}>
+                  {brands.map(b=><option key={b}>{b}</option>)}
+                </select></div>
+              <div><span style={L}>{t.coin}</span>
+                <select style={{...I,cursor:'pointer'}} value={aflt} onChange={e=>setAflt(e.target.value)}>
+                  <option value="All">{t.all}</option><option>BTC</option><option>LTC</option>
+                </select></div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <span style={L}>{t.model}</span>
+              <select style={{...I,cursor:'pointer'}} value={selId}
+                onChange={e=>{setSelId(+e.target.value);setMPrc(null);}}>
+                {filt.map(m=>(
+                  <option key={m.id} value={m.id}>
+                    {m.brand} {m.model} · {m.eff} J/{m.unit} · {m.cooling}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {miner&&(
+              <div style={{background:'#161616',borderRadius:8,padding:'8px 12px',marginBottom:10,
+                display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                <span style={{background:COOL[miner.cooling]+'22',color:COOL[miner.cooling],
+                  borderRadius:5,padding:'2px 8px',fontSize:11,fontWeight:700}}>{miner.cooling}</span>
+                <span style={{fontSize:12,color:'#fff',fontWeight:700}}>{miner.hashrate} {miner.unit}/s</span>
+                <span style={{fontSize:12,color:DM}}>{miner.watts}W</span>
+                <span style={{fontSize:12,color:AC,fontWeight:700}}>{miner.eff} J/TH</span>
+                <span style={{marginLeft:ar?0:'auto',fontSize:12,color:DM}}>{miner.algo}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={G2}>
+          <div><span style={L}>{t.qty}</span>
+            <input type="number" style={I} value={qty} min={1} onChange={e=>setQty(+e.target.value)}/></div>
+          {mode==='list'&&<div><span style={L}>{t.price}</span>
+            <input type="number" style={I} value={effPrc} onChange={e=>setMPrc(+e.target.value)}/></div>}
+          {mode==='custom'&&<div><span style={L}>{t.infra}</span>
+            <input type="number" style={I} value={infra} onChange={e=>setInfra(+e.target.value)}/></div>}
+          <div><span style={L}>{t.elec}</span>
+            <input type="number" style={I} value={elec} step={0.005} onChange={e=>setElec(+e.target.value)}/></div>
+          <div><span style={L}>{isLTC?'LTC':'BTC'} Price $</span>
+            <input type="number" style={I} value={isLTC?ltcP:btcP}
+              onChange={e=>isLTC?setLtcP(+e.target.value):setBtcP(+e.target.value)}/></div>
+          <div><span style={L}>{t.pool}</span>
+            <input type="number" style={I} value={pool} step={0.1} onChange={e=>setPool(+e.target.value)}/></div>
+          {mode==='list'&&<div><span style={L}>{t.infra}</span>
+            <input type="number" style={I} value={infra} onChange={e=>setInfra(+e.target.value)}/></div>}
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+            <span style={{...L,marginBottom:0}}>{t.uptime}</span>
+            <span style={{fontSize:13,fontWeight:700,color:AC}}>{upt}%</span>
+          </div>
+          <input type="range" style={{accentColor:AC}} min={50} max={100}
+            value={upt} onChange={e=>setUpt(+e.target.value)}/>
+        </div>
+
+        {res&&(
+          <div>
+            <div style={{background:res.pDay>=0?'#f7931a11':'#e0555511',
+              border:`1px solid ${res.pDay>=0?'#f7931a44':'#e0555544'}`,
+              borderRadius:14,padding:16,marginBottom:10}}>
+              <div style={{fontSize:11,color:DM,textTransform:'uppercase',letterSpacing:.5}}>{t.profit}</div>
+              <div style={{fontSize:32,fontWeight:800,color:res.pDay>=0?AC:'#e05555',lineHeight:1.1}}>
+                {sm(res.pDay,2)}
+              </div>
+              <div style={{fontSize:12,color:DM,marginTop:4}}>
+                {fmtC(res.coinDay)} {miner.algo}{t.day} · {sm(res.revenue,2)} {t.gross}
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+              <SC label={t.moPro}    value={sm(res.pMo,0)}           color={res.pMo>=0?AC:'#e05555'}/>
+              <SC label={t.be}       value={res.be===Infinity?'∞':`${fmt(res.be,0)} ${t.days}`}/>
+              <SC label={t.roi}      value={`${fmt(res.roi,1)}%`}     color={res.roi>0?AC:'#e05555'}/>
+              <SC label={t.capex}    value={sm(res.capex,0)}/>
+              <SC label={t.eCost}    value={sm(res.eCost,2)}          color="#888"/>
+              <SC label={t.pwr}      value={`${fmt(res.pwrKW,2)} kW`} color="#aaa"/>
+            </div>
+            {chart&&(
+              <div style={{background:CD,border:`1px solid ${BR}`,borderRadius:12,
+                padding:'12px 8px 8px',marginBottom:12}}>
+                <div style={{fontSize:11,color:DM,textTransform:'uppercase',letterSpacing:.5,
+                  marginBottom:8,paddingLeft:6}}>{t.chart}</div>
+                <div style={{overflowX:'auto'}}>
+                  <svg width={chart.W} height={chart.H} style={{display:'block'}}>
+                    <defs>
+                      <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={AC} stopOpacity=".35"/>
+                        <stop offset="100%" stopColor={AC} stopOpacity=".02"/>
+                      </linearGradient>
+                      <linearGradient id="gD" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#e05555" stopOpacity=".02"/>
+                        <stop offset="100%" stopColor="#e05555" stopOpacity=".3"/>
+                      </linearGradient>
+                    </defs>
+                    <line x1={chart.pl} y1={chart.z} x2={chart.W-chart.pr} y2={chart.z}
+                      stroke="#444" strokeWidth="1" strokeDasharray="4,3"/>
+                    <polygon points={chart.fill} fill={res.pDay>=0?'url(#gU)':'url(#gD)'}/>
+                    <polyline points={chart.line} fill="none"
+                      stroke={res.pDay>=0?AC:'#e05555'} strokeWidth="2.5"/>
+                    {chart.beX&&<line x1={chart.beX} y1={chart.pt} x2={chart.beX}
+                      y2={chart.H-chart.pb} stroke="#4ade80" strokeWidth="1.5" strokeDasharray="3,3"/>}
+                    <text x={chart.pl} y={chart.H-4} fill={DM} fontSize="9">0</text>
+                    <text x={chart.W-chart.pr} y={chart.H-4} fill={DM} fontSize="9" textAnchor="end">365d</text>
+                    <text x={chart.pl-2} y={chart.pt+8} fill={DM} fontSize="9" textAnchor="end">{sm(chart.yMx,0)}</text>
+                  </svg>
+                </div>
+                {chart.beX&&<div style={{fontSize:11,color:'#4ade80',textAlign:'center',marginTop:2}}>
+                  ● {t.beAt} {fmt(chart.be,0)} {t.days}
+                </div>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* ══ BEST TAB ══ */}
+    {tab===1&&(
+      <div>
+        <div style={{fontSize:13,fontWeight:700,color:DM,textTransform:'uppercase',
+          letterSpacing:1,marginBottom:12}}>{t.bestTitle}</div>
+        <div style={G2}>
+          <div><span style={L}>{t.budget}</span>
+            <input type="number" style={I} value={budget} onChange={e=>setBudget(+e.target.value)}/></div>
+          <div><span style={L}>{t.elec}</span>
+            <input type="number" style={I} value={rElec} step={0.005} onChange={e=>setRElec(+e.target.value)}/></div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <span style={L}>BTC Price $</span>
+          <input type="number" style={I} value={btcP} onChange={e=>setBtcP(+e.target.value)}/>
+        </div>
+        {recs.map((m,i)=>{
+          const pos=m.pDay>0;
+          return(
+            <div key={m.id} style={{background:CD,border:`1px solid ${i===0?AC:BR}`,
+              borderRadius:12,padding:14,marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:20,fontWeight:800,color:i===0?AC:DM}}>#{i+1}</span>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{m.brand} {m.model}</div>
+                    <div style={{fontSize:11,color:DM}}>{m.q} {t.units} · {m.cooling} · {m.eff} J/TH</div>
+                  </div>
+                </div>
+                <span style={{background:pos?'#f7931a22':'#e0555522',color:pos?AC:'#e05555',
+                  borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:700}}>
+                  {fmt(m.roi,1)}%
+                </span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                <SC label={ar?'يومي':'Daily'} value={sm(m.pDay,2)} color={pos?AC:'#e05555'}/>
+                <SC label={t.be} value={m.be===Infinity?'∞':`${fmt(m.be,0)}d`}/>
+                <SC label={t.pwr} value={`${fmt(m.pwrKW,1)} kW`} color="#aaa"/>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+    {/* ══ COMPARE TAB ══ */}
+    {tab===2&&(
+      <div>
+        <div style={{fontSize:13,fontWeight:700,color:DM,textTransform:'uppercase',
+          letterSpacing:1,marginBottom:12}}>{t.cmpTitle}</div>
+        <div style={{background:'#161616',borderRadius:8,padding:'8px 12px',
+          marginBottom:14,fontSize:12,color:DM}}>
+          {t.using} {qty} {t.units} · ${elec}/kWh · {sm(btcP)}
+        </div>
+        {cmpIds.map((cid,i)=>{
+          const cm=allM.find(m=>m.id===cid);
+          const cr=cm?doCalc(cm,qty,elec,prices,wtm,pool,upt,0):null;
+          return(
+            <div key={i} style={{background:CD,border:`1px solid ${BR}`,borderRadius:12,padding:14,marginBottom:10}}>
+              <span style={L}>{t.miner} {i+1}</span>
+              <select style={{...I,cursor:'pointer',marginBottom:10}} value={cid}
+                onChange={e=>{const n=[...cmpIds];n[i]=+e.target.value;setCmpIds(n);}}>
+                {allM.map(m=>(
+                  <option key={m.id} value={m.id}>{m.brand} {m.model} ({m.algo})</option>
+                ))}
+              </select>
+              {cr&&cm&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}>
+                  <SC label={ar?'يومي':'Daily'} value={sm(cr.pDay,2)} color={cr.pDay>=0?AC:'#e05555'}/>
+                  <SC label={t.roi} value={`${fmt(cr.roi,1)}%`} color={cr.roi>=0?AC:'#e05555'}/>
+                  <SC label={t.be} value={cr.be===Infinity?'∞':`${fmt(cr.be,0)}d`}/>
+                  <SC label="J/TH" value={`${cm.eff} J/TH`} color="#aaa"/>
+                  <SC label={t.moPro} value={sm(cr.pMo,0)} color={cr.pMo>=0?AC:'#e05555'}/>
+                  <SC label={t.pwr} value={`${fmt(cr.pwrKW,1)} kW`} color="#aaa"/>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+    {/* ══ ADMIN TAB ══ */}
+    {tab===3&&isAdmin&&(
+      <div>
+        <div style={{fontSize:13,fontWeight:700,color:DM,textTransform:'uppercase',
+          letterSpacing:1,marginBottom:14}}>{t.adminTitle}</div>
+
+        {deleted.length>0&&(
+          <button onClick={()=>saveDel([])} style={{width:'100%',background:'#1a3a1a',
+            color:'#4ade80',border:'1px solid #4ade8044',borderRadius:10,padding:'10px',
+            fontSize:13,fontWeight:700,cursor:'pointer',marginBottom:10}}>
+            🔄 Restore All ({deleted.length})
+          </button>
+        )}
+
+        <button onClick={()=>setShowForm(v=>!v)} style={{width:'100%',
+          background:showForm?'#2a2a2a':AC,color:showForm?TX:'#000',
+          border:`1px solid ${showForm?BR:AC}`,borderRadius:10,padding:'12px',
+          fontSize:14,fontWeight:700,cursor:'pointer',marginBottom:14}}>
+          {showForm?'✕ Cancel':`+ ${t.addTitle}`}
+        </button>
+
+        {showForm&&(
+          <div style={{background:CD,border:`1px solid ${AC}55`,borderRadius:12,padding:14,marginBottom:16}}>
+            <div style={G2}>
+              {[['Brand','brand','text'],['Model','model','text'],['Hashrate','hashrate','number'],
+                ['Watts','watts','number'],['Price $','price','number']].map(([lb,key,type])=>(
+                <div key={key}><span style={L}>{lb}</span>
+                  <input type={type} style={I} value={form[key]}
+                    onChange={e=>setForm(p=>({...p,[key]:e.target.value}))}/></div>
+              ))}
+              <div><span style={L}>Algo</span>
+                <select style={{...I,cursor:'pointer'}} value={form.algo}
+                  onChange={e=>setForm(p=>({...p,algo:e.target.value}))}>
+                  <option>BTC</option><option>LTC</option>
+                </select></div>
+              <div><span style={L}>Unit</span>
+                <select style={{...I,cursor:'pointer'}} value={form.unit}
+                  onChange={e=>setForm(p=>({...p,unit:e.target.value}))}>
+                  <option>TH</option><option>GH</option>
+                </select></div>
+              <div style={{gridColumn:'1/-1'}}><span style={L}>Cooling</span>
+                <select style={{...I,cursor:'pointer'}} value={form.cooling}
+                  onChange={e=>setForm(p=>({...p,cooling:e.target.value}))}>
+                  <option>Air</option><option>Hydro</option><option>Immersion</option>
+                </select></div>
+            </div>
+            <button onClick={addMiner} style={{width:'100%',background:AC,color:'#000',
+              border:'none',borderRadius:8,padding:'11px',fontSize:14,fontWeight:700,cursor:'pointer'}}>
+              ✓ {t.addBtn}
+            </button>
+          </div>
+        )}
+
+        {customs.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:AC,marginBottom:8,
+              textTransform:'uppercase',letterSpacing:.5}}>★ {t.customList}</div>
+            {customs.map(m=>(
+              <div key={m.id} style={{background:'#161616',border:`1px solid ${AC}44`,
+                borderRadius:10,padding:'10px 12px',marginBottom:6,
+                display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{m.brand} {m.model}</div>
+                  <div style={{fontSize:11,color:DM}}>{m.algo} · {m.hashrate} {m.unit}/s · {m.watts}W</div>
+                  <div style={{fontSize:12,color:AC,fontWeight:700}}>${fmt(m.price,0)}</div>
+                </div>
+                <button onClick={()=>saveCust(customs.filter(x=>x.id!==m.id))}
+                  style={{background:'#e0555522',color:'#e05555',border:`1px solid #e0555544`,
+                  borderRadius:6,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                  {t.del}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{fontSize:11,fontWeight:700,color:DM,marginBottom:8,
+          textTransform:'uppercase',letterSpacing:.5}}>
+          {t.baseList} ({BASE_MINERS.length - deleted.length})
+        </div>
+        {BASE_MINERS.map(m=>{
+          const isDel=deleted.includes(m.id);
+          const curP=overrides[m.id]??m.price;
+          const curW=wOvr[m.id]??m.watts;
+          const isEP=editId===m.id;
+          const isEW=editWId===m.id;
+          return(
+            <div key={m.id} style={{background:isDel?'#1a0a0a':CD,
+              border:`1px solid ${isDel?'#e0555533':BR}`,borderRadius:8,
+              padding:'8px 12px',marginBottom:5,opacity:isDel?0.5:1}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#fff',
+                    whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                    {m.brand} {m.model}
+                  </div>
+                  <div style={{fontSize:10,color:DM}}>{m.algo} · {m.cooling} · {curW}W · {m.eff} J/TH</div>
+                </div>
+                <button onClick={()=>isDel?saveDel(deleted.filter(x=>x!==m.id)):saveDel([...deleted,m.id])}
+                  style={{background:isDel?'#1a3a1a':'#e0555511',
+                    color:isDel?'#4ade80':'#e05555',
+                    border:`1px solid ${isDel?'#4ade8033':'#e0555533'}`,
+                    borderRadius:5,padding:'3px 7px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
+                  {isDel?'↩':'🗑'}
+                </button>
+              </div>
+
+              {!isDel&&(
+                <div style={{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}}>
+                  {/* Edit Price */}
+                  {isEP?(
+                    <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                      <input type="number" autoFocus
+                        style={{...I,width:80,padding:'4px 7px',fontSize:12}}
+                        value={editVal} onChange={e=>setEditVal(e.target.value)}/>
+                      <button onClick={()=>{const v=+editVal;if(v>=0)saveOvr({...overrides,[m.id]:v});setEditId(null);}}
+                        style={{background:AC,color:'#000',border:'none',borderRadius:5,
+                        padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'pointer'}}>✓</button>
+                      <button onClick={()=>setEditId(null)}
+                        style={{background:'#333',color:TX,border:'none',borderRadius:5,
+                        padding:'4px 8px',fontSize:11,cursor:'pointer'}}>✕</button>
+                    </div>
+                  ):(
+                    <button onClick={()=>{setEditId(m.id);setEditVal(String(curP));}}
+                      style={{background:'#f7931a18',color:AC,border:`1px solid ${AC}33`,
+                      borderRadius:5,padding:'4px 8px',fontSize:10,fontWeight:700,cursor:'pointer'}}>
+                      ${fmt(curP,0)} {t.editP}
+                    </button>
+                  )}
+
+                  {/* Edit Watts */}
+                  {isEW?(
+                    <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                      <input type="number" autoFocus
+                        style={{...I,width:80,padding:'4px 7px',fontSize:12}}
+                        value={editWVal} onChange={e=>setEditWVal(e.target.value)}/>
+                      <button onClick={()=>{const v=+editWVal;if(v>0)saveWOvr({...wOvr,[m.id]:v});setEditWId(null);}}
+                        style={{background:'#06b6d4',color:'#000',border:'none',borderRadius:5,
+                        padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'pointer'}}>✓</button>
+                      <button onClick={()=>setEditWId(null)}
+                        style={{background:'#333',color:TX,border:'none',borderRadius:5,
+                        padding:'4px 8px',fontSize:11,cursor:'pointer'}}>✕</button>
+                    </div>
+                  ):(
+                    <button onClick={()=>{setEditWId(m.id);setEditWVal(String(curW));}}
+                      style={{background:'#06b6d418',color:'#06b6d4',border:'1px solid #06b6d433',
+                      borderRadius:5,padding:'4px 8px',fontSize:10,fontWeight:700,cursor:'pointer'}}>
+                      {curW}W {t.editW}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+  </div>
+</div>
+```
+
+);
+}
+
+ReactDOM.createRoot(document.getElementById(‘root’)).render(<App/>);
+</script>
+
+</body>
+</html>
